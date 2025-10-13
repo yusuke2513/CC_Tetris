@@ -1,7 +1,26 @@
 import React, { useState, useRef } from 'react';
+// S3Client はそのまま使用
+import { S3Client } from "@aws-sdk/client-s3";
+// lib-storage から Upload をインポート
+import { Upload } from "@aws-sdk/lib-storage";
+
+// --- AWS設定 (ここに自分の情報を入力) ---
+const s3Config = {
+  region: 'REACT_APP_AWS_REGION', // 例: 'ap-northeast-1' (東京リージョン)
+  credentials: {
+    accessKeyId: 'REACT_APP_AWS_ACCESS_KEY_ID',       // ★ あなたのアクセスキーID
+    secretAccessKey: 'REACT_APP_AWS_SECRET_ACCESS_KEY' // ★ あなたのシークレットアクセスキー
+  }
+};
+
+const BUCKET_NAME = 'cc-tetris-images'; // ★ あなたのS3バケット名
+
+// S3クライアントのインスタンスを作成
+const s3Client = new S3Client(s3Config);
+// --- AWS設定ここまで ---
+
 
 const ImageUploader = () => {
-  // （...関数の部分は変更なし...）
   const [selectedFile, setSelectedFile] = useState(null);
   const fileInputRef = useRef(null);
 
@@ -11,30 +30,35 @@ const ImageUploader = () => {
     }
   };
 
+  // handleUploadClick関数を lib-storage を使うように変更
   const handleUploadClick = async () => {
     if (!selectedFile) {
       alert('画像ファイルを選択してください。');
       return;
     }
+    
     try {
-      const res = await fetch('http://localhost:3001/get-presigned-url', {
-        method: 'POST',
-        body: JSON.stringify({ filename: selectedFile.name }),
-        headers: { 'Content-Type': 'application/json' }
+      // lib-storageのUpload機能を使ってアップロード処理を初期化
+      const FOLDER_NAME = 'before_change/';
+      const uploader = new Upload({
+        client: s3Client,
+        params: {
+          Bucket: BUCKET_NAME,
+          Key: `${FOLDER_NAME}${Date.now()}_${selectedFile.name}`,
+          Body: selectedFile,
+          ContentType: selectedFile.type,
+        },
       });
-      const { url } = await res.json();
 
-      await fetch(url, {
-        method: 'PUT',
-        body: selectedFile,
-        headers: { 'Content-Type': selectedFile.type }
-      });
+      // アップロードを実行
+      await uploader.done();
 
       alert('アップロード完了');
       setSelectedFile(null);
+
     } catch (error) {
       console.error('Upload failed:', error);
-      alert('アップロードに失敗しました。');
+      alert(`アップロードに失敗しました: ${error.message}`);
     }
   };
   
@@ -43,9 +67,8 @@ const ImageUploader = () => {
   };
 
   return (
-    // 1. 全体を囲む親コンテナ（これが位置指定の基準となる）
+    // （...return以下のJSXとstylesオブジェクトは変更なし...）
     <div style={styles.container}>
-      {/* 隠しinput要素 */}
       <input
         type="file"
         accept="image/*"
@@ -53,8 +76,6 @@ const ImageUploader = () => {
         ref={fileInputRef}
         style={{ display: 'none' }}
       />
-
-      {/* 2. 上部中央のアップロードボタン */}
       <div style={styles.topCenter}>
         {!selectedFile && (
           <button onClick={handleSelectButtonClick} style={styles.uploadButton}>
@@ -70,22 +91,16 @@ const ImageUploader = () => {
           </div>
         )}
       </div>
-
-      {/* 3. 中央左の矢印ボタン */}
       <div style={styles.centerLeft}>
         <button style={styles.arrowButton} onClick={() => alert('「←」がクリックされました')}>
           ←
         </button>
       </div>
-
-      {/* 4. 中央右の矢印ボタン */}
       <div style={styles.centerRight}>
         <button style={styles.arrowButton} onClick={() => alert('「→」がクリックされました')}>
           →
         </button>
       </div>
-      
-      {/* 5. 下部中央の矢印ボタン */}
       <div style={styles.bottomCenter}>
         <button style={styles.arrowButton} onClick={() => alert('「↓」がクリックされました')}>
           ↓
