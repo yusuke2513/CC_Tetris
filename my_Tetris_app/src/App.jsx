@@ -10,6 +10,7 @@ function App() {
     const {
         boardData,
         imageCache,
+        currentMino,
         fetchGameState,
         fetchAndCacheSquares, // テスト用関数
         displayImagesOnBoard, // テスト用関数
@@ -41,6 +42,16 @@ function App() {
                 </button>
                 <button onClick={spawnTestMino} style={{ ...styles.uploadButton, backgroundColor: "#FF9800" }}>
                     テストミノ出現
+                </button>
+                <button
+                    onClick={() => fetchGameState("init")}
+                    disabled={!currentMino} // currentMinoが存在しない場合は無効化
+                    style={{
+                        ...styles.uploadButton,
+                        backgroundColor: !currentMino ? "#aaa" : "#2196F3", // 無効時は灰色に
+                    }}
+                >
+                    Init（初期化）
                 </button>
             </div>
             {/* --- テスト用ボタンここまで --- */}

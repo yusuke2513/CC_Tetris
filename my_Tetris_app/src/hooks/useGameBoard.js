@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 import { S3Client, ListObjectsV2Command } from "@aws-sdk/client-s3";
 
@@ -24,14 +24,24 @@ const s3Config = {
 };
 const s3Client = new S3Client(s3Config);
 
+// 盤面サイズは定数で一元管理
+const BOARD_ROWS = 5;
+const BOARD_COLS = 4;
+
 // 空の初期盤面を生成する関数
-const createEmptyBoard = () => Array(15).fill(Array(11).fill(-1));
+const createEmptyBoard = () => Array.from({ length: BOARD_ROWS }, () => Array(BOARD_COLS).fill(-1));
 
 export const useGameBoard = () => {
     const [boardData, setBoardData] = useState(createEmptyBoard());
     const [imageCache, setImageCache] = useState(new Map());
     const [currentMino, setCurrentMino] = useState(null);
     // ゲームステータスなど、将来的に追加する状態
+
+    // ▼ 新しいstateを追加
+    // ゲームの終了状態を管理 (例: 'playing', 'gameover')
+    const [gameStatus, setGameStatus] = useState("tttt");
+    // どの方向に移動可能かを管理
+    const [movable, setMovable] = useState({ left: true, right: true, down: true });
 
     // 新しい画像IDを受け取り、キャッシュを更新する関数
     const addNewImagesToCache = useCallback(
@@ -73,7 +83,7 @@ export const useGameBoard = () => {
                     body: JSON.stringify({
                         action: move, // "left", "right", "down"
                         board: boardData, // 現在の盤面
-                        currentMino: currentMino, // 現在のミノ情報
+                        currentMino: currentMino,
                     }),
                 });
 
@@ -82,11 +92,15 @@ export const useGameBoard = () => {
                 }
 
                 const result = await response.json();
+                console.log("✅ Lambdaからのレスポンス:", result);
 
                 // Lambdaからのレスポンスを元にstateを更新！
                 setBoardData(result.board);
                 setCurrentMino(result.currentMino);
-                // setGameStatus(result.status); // 必要に応じて
+                setMovable(result.canmove);
+
+                // サーバーからの gameStatus を反映
+                setGameStatus(result.gameStatus);
             } catch (error) {
                 console.error("ゲーム状態の更新に失敗しました:", error);
                 alert("サーバーとの通信に失敗しました。");
@@ -94,6 +108,28 @@ export const useGameBoard = () => {
         },
         [boardData, currentMino]
     ); // 依存配列にboardDataとcurrentMinoを追加
+
+    // ▼ 2. useRefを使って、常に最新の関数を保持します
+    const fetchGameStateRef = useRef(fetchGameState);
+    useEffect(() => {
+        fetchGameStateRef.current = fetchGameState;
+    }); // 依存配列なし
+
+    // ▼ 3. gameStatusを監視し、自動リクエストを送信するuseEffect
+    useEffect(() => {
+        if (gameStatus === "check" || gameStatus === "normalize") {
+            console.log(`⚙️ 自動アクション: ${gameStatus} を実行します`);
+            const timer = setTimeout(() => {
+                // ref経由で最新の関数を呼び出す
+                fetchGameStateRef.current(gameStatus);
+            }, 50); // わずかな遅延でstate更新を確実にする
+            return () => clearTimeout(timer);
+        }
+        if (gameStatus === "gameover") {
+            alert("ゲームオーバー！");
+            setMovable({ left: false, right: false, down: false });
+        }
+    }, [gameStatus]); // 依存配列はgameStatusのみ
 
     const fetchAndCacheSquares = useCallback(async () => {
         try {
@@ -141,8 +177,8 @@ export const useGameBoard = () => {
     const displayImagesOnBoard = useCallback((ids) => {
         if (!ids || ids.length === 0) return;
 
-        const rows = 15;
-        const cols = 11;
+        const rows = BOARD_ROWS;
+        const cols = BOARD_COLS;
         const newBoard = Array.from({ length: rows }, () => Array(cols).fill(-1));
 
         let currentIdIndex = 0;
@@ -166,7 +202,7 @@ export const useGameBoard = () => {
     const spawnTestMino = useCallback(() => {
         // S3にある test_mino_T.json のようなデータをハードコードで用意
         const testMinoShape = {
-            minoId: "test-mino-T-01",
+            minoId: "test-mino-T",
             blocks: [
                 { id: 101, x: 1, y: 0 },
                 { id: 102, x: 0, y: 1 },
@@ -179,16 +215,12 @@ export const useGameBoard = () => {
         addNewImagesToCache(testMinoShape.blocks);
 
         // stateを更新して、ミノを盤面の上部中央に配置する
-        setCurrentMino({
-            shapeInfo: testMinoShape, // ミノの形やIDの情報
-            x: 4, // 盤面上のX座標 (中央)
-            y: 0, // 盤面上のY座標 (一番上)
-        });
+        setCurrentMino(testMinoShape);
 
         alert("テストミノを出現させました！");
     }, [addNewImagesToCache]); // 依存配列にaddNewImagesToCacheを追加
 
-    // コンポーネントが最初に表示された時に一度だけゲーム状態を取得
+    // コンポーネントが最初に表示された時に一度だけゲーム状態を取得;
     useEffect(() => {
         // fetchGameState('start'); // 例えば'start'アクションで初期盤面を取得
         console.log("ゲームボードの初期化");
@@ -199,6 +231,8 @@ export const useGameBoard = () => {
         boardData,
         imageCache,
         currentMino,
+        gameStatus, // gameStatusをエクスポート
+        movable,
         fetchGameState, // ダミー
         // テスト用の関数を追加
         fetchAndCacheSquares,
