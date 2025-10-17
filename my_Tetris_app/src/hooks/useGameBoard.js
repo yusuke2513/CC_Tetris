@@ -1,47 +1,80 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
-import { S3Client, ListObjectsV2Command } from "@aws-sdk/client-s3";
-
 // .envファイルから定数を読み込む
 const S3_BUCKET_NAME = import.meta.env.VITE_S3_BUCKET_NAME;
 const AWS_REGION = import.meta.env.VITE_AWS_REGION;
-const AWS_ACCESS_KEY_ID = import.meta.env.VITE_AWS_ACCESS_KEY_ID;
-const AWS_SECRET_ACCESS_KEY = import.meta.env.VITE_AWS_SECRET_ACCESS_KEY;
 const PROCESSED_SQUARES_FOLDER = import.meta.env.VITE_S3_PROCESSED_SQUARES_FOLDER;
-
+const PROCESS_IMAGE_API_ENDPOINT = import.meta.env.VITE_PROCESS_IMAGE_API_ENDPOINT;
 const API_ENDPOINT = import.meta.env.VITE_API_ENDPOINT_URL;
 
 // S3バケットのベースURLを組み立てる
 const S3_BASE_URL = `https://${S3_BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com`;
 
-// S3クライアントの設定
-const s3Config = {
-    region: AWS_REGION,
-    credentials: {
-        accessKeyId: AWS_ACCESS_KEY_ID,
-        secretAccessKey: AWS_SECRET_ACCESS_KEY,
-    },
-};
-const s3Client = new S3Client(s3Config);
-
 // 盤面サイズは定数で一元管理
-const BOARD_ROWS = 5;
-const BOARD_COLS = 4;
+const BOARD_ROWS = 10;
+const BOARD_COLS = 6;
 
 // 空の初期盤面を生成する関数
 const createEmptyBoard = () => Array.from({ length: BOARD_ROWS }, () => Array(BOARD_COLS).fill(-1));
+const createEmptyDirectionBoard = () => Array.from({ length: BOARD_ROWS }, () => Array(BOARD_COLS).fill(-1));
 
 export const useGameBoard = () => {
     const [boardData, setBoardData] = useState(createEmptyBoard());
+    const [directionData, setDirectionData] = useState(createEmptyDirectionBoard());
     const [imageCache, setImageCache] = useState(new Map());
     const [currentMino, setCurrentMino] = useState(null);
-    // ゲームステータスなど、将来的に追加する状態
-
-    // ▼ 新しいstateを追加
-    // ゲームの終了状態を管理 (例: 'playing', 'gameover')
-    const [gameStatus, setGameStatus] = useState("tttt");
-    // どの方向に移動可能かを管理
+    const [gameStatus, setGameStatus] = useState("initial");
     const [movable, setMovable] = useState({ left: true, right: true, down: true });
+    const [score, setScore] = useState(0);
+
+    // Lambdaを呼び出してゲーム状態を更新する非同期関数
+    const fetchGameState = useCallback(
+        async (action, newMino = null) => {
+            const minoToSend = action === "init" ? newMino : currentMino;
+
+            if (!minoToSend) {
+                console.log("操作対象のミノがありません。");
+                return;
+            }
+
+            try {
+                const response = await fetch(API_ENDPOINT, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        action: action,
+                        board: boardData,
+                        currentMino: minoToSend,
+                        direction: directionData,
+                        score: score,
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                console.log("✅ Lambdaからのレスポンス:", result);
+
+                setBoardData(result.board);
+                setCurrentMino(result.currentMino);
+                setMovable(result.canmove);
+                setGameStatus(result.gameStatus);
+
+                if (result.direction) {
+                    setDirectionData(result.direction);
+                }
+                if (result.score !== undefined) {
+                    setScore(result.score);
+                }
+            } catch (error) {
+                console.error("ゲーム状態の更新に失敗しました:", error);
+                alert("サーバーとの通信に失敗しました。");
+            }
+        },
+        [boardData, currentMino, directionData, score]
+    );
 
     // 新しい画像IDを受け取り、キャッシュを更新する関数
     const addNewImagesToCache = useCallback(
@@ -63,146 +96,76 @@ export const useGameBoard = () => {
             }
         },
         [imageCache]
-    ); // imageCacheが更新されたら関数を再生成
+    );
 
-    // Lambdaを呼び出してゲーム状態を更新する非同期関数
-    const fetchGameState = useCallback(
-        async (move) => {
-            if (!currentMino && move) {
-                console.log("操作対象のミノがありません。");
-                return;
-            }
+    const uploadAndProcessImage = useCallback(
+        async (file) => {
+            if (!file) return;
 
-            try {
-                const response = await fetch(API_ENDPOINT, {
-                    // API GatewayのURL + ルート
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        action: move, // "left", "right", "down"
-                        board: boardData, // 現在の盤面
-                        currentMino: currentMino,
-                    }),
-                });
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
 
-                if (!response.ok) {
-                    throw new Error(`API Error: ${response.statusText}`);
+            reader.onload = async () => {
+                const base64Image = reader.result;
+                try {
+                    const processResponse = await fetch(PROCESS_IMAGE_API_ENDPOINT, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ image: base64Image }),
+                    });
+
+                    if (!processResponse.ok) {
+                        throw new Error(`API Error: ${processResponse.statusText}`);
+                    }
+
+                    const result = await processResponse.json();
+                    console.log("✅ 画像処理Lambdaからのレスポンス:", result);
+
+                    if (result.newMino) {
+                        addNewImagesToCache(result.newMino.blocks);
+                        await fetchGameState("init", result.newMino);
+                        console.log("🚀 新しいミノを盤面にセットしました！");
+                    }
+                } catch (error) {
+                    console.error("Upload and process failed:", error);
+                    alert(`処理に失敗しました: ${error.message}`);
                 }
+            };
 
-                const result = await response.json();
-                console.log("✅ Lambdaからのレスポンス:", result);
-
-                // Lambdaからのレスポンスを元にstateを更新！
-                setBoardData(result.board);
-                setCurrentMino(result.currentMino);
-                setMovable(result.canmove);
-
-                // サーバーからの gameStatus を反映
-                setGameStatus(result.gameStatus);
-            } catch (error) {
-                console.error("ゲーム状態の更新に失敗しました:", error);
-                alert("サーバーとの通信に失敗しました。");
-            }
+            reader.onerror = (error) => {
+                console.error("File reading failed:", error);
+                alert("ファイルの読み込みに失敗しました。");
+            };
         },
-        [boardData, currentMino]
-    ); // 依存配列にboardDataとcurrentMinoを追加
+        [fetchGameState, addNewImagesToCache]
+    );
 
-    // ▼ 2. useRefを使って、常に最新の関数を保持します
+    // gameStatusを監視し、自動リクエストを送信するuseEffect
     const fetchGameStateRef = useRef(fetchGameState);
     useEffect(() => {
         fetchGameStateRef.current = fetchGameState;
-    }); // 依存配列なし
+    }, [fetchGameState]);
 
-    // ▼ 3. gameStatusを監視し、自動リクエストを送信するuseEffect
     useEffect(() => {
         if (gameStatus === "check" || gameStatus === "normalize") {
             console.log(`⚙️ 自動アクション: ${gameStatus} を実行します`);
             const timer = setTimeout(() => {
-                // ref経由で最新の関数を呼び出す
                 fetchGameStateRef.current(gameStatus);
-            }, 50); // わずかな遅延でstate更新を確実にする
+            }, 50); // わずかな遅延
             return () => clearTimeout(timer);
         }
         if (gameStatus === "gameover") {
             alert("ゲームオーバー！");
-            setMovable({ left: false, right: false, down: false });
+            // 将来的に全ての操作を無効化するロジックをここに追加
         }
-    }, [gameStatus]); // 依存配列はgameStatusのみ
-
-    const fetchAndCacheSquares = useCallback(async () => {
-        try {
-            const command = new ListObjectsV2Command({
-                Bucket: S3_BUCKET_NAME,
-                Prefix: PROCESSED_SQUARES_FOLDER,
-            });
-
-            const response = await s3Client.send(command);
-            const contents = response.Contents || [];
-
-            const newCache = new Map(imageCache);
-            const fetchedIds = [];
-
-            contents.forEach((item) => {
-                // フォルダ自体はスキップ
-                if (item.Key === PROCESSED_SQUARES_FOLDER) return;
-
-                // ファイル名からIDを抽出 (例: "processed_squares/101.png" -> "101")
-                const id = parseInt(item.Key.split("/").pop().split(".")[0]);
-
-                if (!isNaN(id) && !newCache.has(id)) {
-                    const imageUrl = `${S3_BASE_URL}/${item.Key}`;
-                    newCache.set(id, imageUrl);
-                    fetchedIds.push(id);
-                }
-            });
-
-            if (fetchedIds.length > 0) {
-                setImageCache(newCache);
-                alert(`${fetchedIds.length}件の画像をキャッシュしました！`);
-                return fetchedIds; // 取得したIDのリストを返す
-            } else {
-                alert("新しい画像は見つかりませんでした。");
-                return [];
-            }
-        } catch (error) {
-            console.error("S3からの画像一覧取得に失敗しました:", error);
-            alert(`エラー: ${error.message}`);
-            return [];
-        }
-    }, [imageCache]);
-
-    // 2. キャッシュした画像IDを使って盤面に表示する関数
-    const displayImagesOnBoard = useCallback((ids) => {
-        if (!ids || ids.length === 0) return;
-
-        const rows = BOARD_ROWS;
-        const cols = BOARD_COLS;
-        const newBoard = Array.from({ length: rows }, () => Array(cols).fill(-1));
-
-        let currentIdIndex = 0;
-        for (let r = 0; r < rows; r++) {
-            for (let c = 0; c < cols; c++) {
-                if (currentIdIndex < ids.length) {
-                    newBoard[r][c] = ids[currentIdIndex];
-                    currentIdIndex++;
-                } else {
-                    break;
-                }
-            }
-            if (currentIdIndex >= ids.length) break;
-        }
-
-        setBoardData(newBoard);
-        alert("キャッシュした画像盤面に表示しました。");
-    }, []);
+    }, [gameStatus]);
 
     // テスト用のミノを盤面に出現させる関数
     const spawnTestMino = useCallback(() => {
         // S3にある test_mino_T.json のようなデータをハードコードで用意
         const testMinoShape = {
             minoId: "test-mino-T",
+            shapeType: "T",
             blocks: [
                 { id: 101, x: 1, y: 0 },
                 { id: 102, x: 0, y: 1 },
@@ -213,30 +176,22 @@ export const useGameBoard = () => {
 
         // ミノの画像がキャッシュになければ追加する
         addNewImagesToCache(testMinoShape.blocks);
-
-        // stateを更新して、ミノを盤面の上部中央に配置する
-        setCurrentMino(testMinoShape);
+        // Lambdaに "init" アクションを送信
+        fetchGameState("init", testMinoShape);
 
         alert("テストミノを出現させました！");
-    }, [addNewImagesToCache]); // 依存配列にaddNewImagesToCacheを追加
-
-    // コンポーネントが最初に表示された時に一度だけゲーム状態を取得;
-    useEffect(() => {
-        // fetchGameState('start'); // 例えば'start'アクションで初期盤面を取得
-        console.log("ゲームボードの初期化");
-    }, []);
+    }, [addNewImagesToCache, fetchGameState]);
 
     // このフックが提供する値と関数を返す
     return {
         boardData,
         imageCache,
         currentMino,
-        gameStatus, // gameStatusをエクスポート
+        gameStatus,
         movable,
-        fetchGameState, // ダミー
-        // テスト用の関数を追加
-        fetchAndCacheSquares,
-        displayImagesOnBoard,
+        score,
+        fetchGameState,
+        uploadAndProcessImage,
         spawnTestMino,
     };
 };
