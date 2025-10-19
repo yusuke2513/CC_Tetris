@@ -121,9 +121,9 @@ export const useGameBoard = () => {
                     const result = await processResponse.json();
                     console.log("✅ 画像処理Lambdaからのレスポンス:", result);
 
-                    if (result.newMino) {
-                        addNewImagesToCache(result.newMino.blocks);
-                        await fetchGameState("init", result.newMino);
+                    if (result.minoJson) {
+                        addNewImagesToCache(result.minoJson.blocks);
+                        await fetchGameState("init", result.minoJson);
                         console.log("🚀 新しいミノを盤面にセットしました！");
                     }
                 } catch (error) {
