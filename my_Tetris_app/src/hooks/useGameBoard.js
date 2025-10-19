@@ -26,6 +26,24 @@ export const useGameBoard = () => {
     const [gameStatus, setGameStatus] = useState("initial");
     const [movable, setMovable] = useState({ left: true, right: true, down: true });
     const [score, setScore] = useState(0);
+    const [isLoading, setIsLoading] = useState(false); // ◀️ 1. ローディング用のstateを追加
+
+    // ミノの座標系を変換するヘルパー関数
+    const swapMinoCoordinates = (mino) => {
+        // ミノが存在しない、またはblocksがなければそのまま返す
+        if (!mino || !mino.blocks) {
+            return mino;
+        }
+
+        // 各ブロックのxとyを入れ替える
+        const swappedBlocks = mino.blocks.map(({ x, y, ...rest }) => ({
+            x: y, // yをxに
+            y: x, // xをyに
+            ...rest,
+        }));
+
+        return { ...mino, blocks: swappedBlocks };
+    };
 
     // Lambdaを呼び出してゲーム状態を更新する非同期関数
     const fetchGameState = useCallback(
@@ -37,6 +55,8 @@ export const useGameBoard = () => {
                 return;
             }
 
+            const backendMino = swapMinoCoordinates(minoToSend);
+
             try {
                 const response = await fetch(API_ENDPOINT, {
                     method: "POST",
@@ -44,7 +64,7 @@ export const useGameBoard = () => {
                     body: JSON.stringify({
                         action: action,
                         board: boardData,
-                        currentMino: minoToSend,
+                        currentMino: backendMino,
                         direction: directionData,
                         score: score,
                     }),
@@ -57,8 +77,10 @@ export const useGameBoard = () => {
                 const result = await response.json();
                 console.log("✅ Lambdaからのレスポンス:", result);
 
+                const frontendMino = swapMinoCoordinates(result.currentMino);
+
                 setBoardData(result.board);
-                setCurrentMino(result.currentMino);
+                setCurrentMino(frontendMino);
                 setMovable(result.canmove);
                 setGameStatus(result.gameStatus);
 
@@ -102,6 +124,8 @@ export const useGameBoard = () => {
         async (file) => {
             if (!file) return;
 
+            setIsLoading(true);
+
             const reader = new FileReader();
             reader.readAsDataURL(file);
 
@@ -129,12 +153,15 @@ export const useGameBoard = () => {
                 } catch (error) {
                     console.error("Upload and process failed:", error);
                     alert(`処理に失敗しました: ${error.message}`);
+                } finally {
+                    setIsLoading(false); // ◀️ 3. 成功・失敗に関わらず通信終了！ローディング画面を非表示
                 }
             };
 
             reader.onerror = (error) => {
                 console.error("File reading failed:", error);
                 alert("ファイルの読み込みに失敗しました。");
+                setIsLoading(false);
             };
         },
         [fetchGameState, addNewImagesToCache]
@@ -190,6 +217,7 @@ export const useGameBoard = () => {
         gameStatus,
         movable,
         score,
+        isLoading,
         fetchGameState,
         uploadAndProcessImage,
         spawnTestMino,

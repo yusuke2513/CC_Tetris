@@ -2,6 +2,7 @@ import React from "react";
 import ImageUploader from "./components/ImageUploader";
 import GameBoard from "./components/GameBoard";
 import ArrowControls from "./components/ArrowControls";
+import LoadingScreen from "./components/LoadingScreen";
 import styles from "./components/uploaderStyles";
 import { useGameBoard } from "./hooks/useGameBoard";
 
@@ -13,6 +14,7 @@ function App() {
         movable,
         gameStatus,
         score, // ◀️ スコアを追加
+        isLoading,
         fetchGameState,
         uploadAndProcessImage,
         spawnTestMino,
@@ -30,23 +32,20 @@ function App() {
                 padding: "20px", // 内側の余白
             }}
         >
+            {isLoading && <LoadingScreen />} {/* ◀️ 3. isLoadingがtrueの時だけ表示 */}
             {/* 画像アップロードコンポーネント */}
             <ImageUploader onUploadRequest={uploadAndProcessImage} isUploadAllowed={isUploadAllowed} />
-
             {/* --- スコア表示を追加 --- */}
             <div style={{ margin: "20px", textAlign: "center", fontSize: "24px", fontWeight: "bold" }}>SCORE: {score}</div>
-
             <div style={{ margin: "10px", textAlign: "center" }}>
                 <button onClick={spawnTestMino} style={{ ...styles.uploadButton, backgroundColor: "#FF9800" }}>
                     テストミノ出現 (Debug)
                 </button>
             </div>
-
             {/* ゲーム盤面コンポーネント */}
             <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
                 <GameBoard fieldData={boardData} imageCache={imageCache} />
             </div>
-
             {/* 操作ボタンコンポーネント */}
             <ArrowControls onLeft={() => fetchGameState("left")} onRight={() => fetchGameState("right")} onDown={() => fetchGameState("down")} movable={movable} styles={styles} />
         </div>
