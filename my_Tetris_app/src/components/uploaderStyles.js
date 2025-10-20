@@ -9,6 +9,45 @@ const styles = {
         padding: "24px",
         boxSizing: "border-box",
     },
+    // (1) 盤面とロゴのラッパー。これが基準点になる。
+    gameAreaWrapper: {
+        position: "relative", // ロゴを配置する際の基準点
+        // display: "inline-block" を使い、ラッパーの幅が盤面の幅と等しくなるようにする
+        display: "inline-block", 
+        margin: "20px 0",
+    },
+
+    // (2) logoImage のスタイルを全面的に変更
+    logoImage: {
+        position: "absolute", // gameAreaWrapper を基準に配置
+        
+        // ↓ ラッパーの高さの50%の位置に配置
+        top: "50%", 
+        // ↓ ラッパーの右端(100%)の位置に配置
+        left: "20%", 
+        // ↓ ロゴ自体の高さの半分だけ上に戻して、完全に中央揃えにする
+        //    同時に90度回転させる
+        transform: "translateY(-50%) rotate(90deg)", 
+        
+        width: "317px",
+        height: "auto",
+        marginLeft: "20px", // 盤面とロゴの間に20pxの隙間を空ける
+    },
+    logoImage2: {
+        position: "absolute", // gameAreaWrapper を基準に配置
+        
+        // ↓ ラッパーの高さの50%の位置に配置
+        top: "50%", 
+        // ↓ ラッパーの右端(100%)の位置に配置
+        right: "30%", 
+        // ↓ ロゴ自体の高さの半分だけ上に戻して、完全に中央揃えにする
+        //    同時に90度回転させる
+        transform: "translateY(-50%) rotate(270deg)", 
+        
+        width: "317px",
+        height: "auto",
+        marginLeft: "20px", // 盤面とロゴの間に20pxの隙間を空ける
+    },
     // 親コンテナ：中央に配置され、縦に伸びすぎないようにする
     container: {
         display: "flex",
