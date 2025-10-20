@@ -13,17 +13,7 @@ const cellStyle = {
     fontSize: "12px",
 };
 
-// 各IDに対応する色（将来的に画像に置き換える部分）
-// const blockColors = {
-//     0: "#333", // 空白
-//     1: "#FF0000", // 赤
-//     2: "#00FF00", // 緑
-//     3: "#0000FF", // 青
-//     4: "#FFFF00", // 黄
-//     5: "#FF00FF", // マゼンタ
-// };
-
-const GameBoard = ({ fieldData, imageCache }) => {
+const GameBoard = ({ fieldData, directionData, imageCache }) => {
     // フィールド全体のスタイル
     const boardStyle = {
         display: "grid",
@@ -33,15 +23,24 @@ const GameBoard = ({ fieldData, imageCache }) => {
         backgroundColor: "#111",
     };
 
+    const getRotationStyle = (directionValue) => {
+        const degrees = (directionValue || 0) * 90;
+        return {
+            transform: `rotate(${degrees}deg)`,
+            transition: "transform 0.2s ease-in-out", // スムーズな回転アニメーション（任意）
+        };
+    };
+
     return (
         <div style={boardStyle}>
             {fieldData.map((row, rowIndex) =>
                 row.map((cellId, colIndex) => {
                     // キャッシュから画像URLを取得
                     const imageUrl = cellId !== -1 ? imageCache.get(cellId) : null;
+                    const direction = directionData[rowIndex]?.[colIndex] ?? 0;
                     return (
                         <div key={`${rowIndex}-${colIndex}`} style={cellStyle}>
-                            {imageUrl && <img src={imageUrl} alt={`block-${cellId}`} style={{ width: "100%", height: "100%", display: "block" }} />}
+                            {imageUrl && <img src={imageUrl} alt={`block-${cellId}`} style={{ width: "100%", height: "100%", ...getRotationStyle(direction), display: "block" }} />}
                         </div>
                     );
                 })

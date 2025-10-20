@@ -4,7 +4,7 @@ import ImagePreview from "./ImagePreview";
 import styles from "./uploaderStyles";
 
 // onUploadRequestをpropsで受け取る
-const ImageUploader = ({ onUploadRequest }) => {
+const ImageUploader = ({ onUploadRequest, isUploadAllowed }) => {
     const [selectedFile, setSelectedFile] = useState(null);
     const fileInputRef = useRef(null);
 
@@ -14,8 +14,8 @@ const ImageUploader = ({ onUploadRequest }) => {
 
     const handleUploadClick = () => {
         if (selectedFile) {
-            onUploadRequest(selectedFile); // 親から渡された関数を実行
-            setSelectedFile(null); // ファイル選択をリセット
+            onUploadRequest(selectedFile); // Run the function from the parent
+            setSelectedFile(null); // Reset file selection
         }
     };
 
@@ -27,12 +27,27 @@ const ImageUploader = ({ onUploadRequest }) => {
         setSelectedFile(null);
     };
 
+    // 1. Create a style for the disabled state
+    const disabledStyle = {
+        backgroundColor: "#cccccc", // Gray out
+        cursor: "not-allowed", // Change the mouse cursor
+    };
+
+    // 2. Determine the button's style based on 'isUploadAllowed'
+    const buttonStyle = isUploadAllowed ? styles.uploadButton : { ...styles.uploadButton, ...disabledStyle };
+
     return (
         <div style={styles.container}>
-            <FileInput ref={fileInputRef} onFileChange={handleFileChange} />
+            {/* The hidden file input also needs to be disabled */}
+            <FileInput ref={fileInputRef} onFileChange={handleFileChange} disabled={!isUploadAllowed} />
             <div style={styles.topCenter}>
                 {!selectedFile && (
-                    <button onClick={handleSelectButtonClick} style={styles.uploadButton}>
+                    <button
+                        onClick={handleSelectButtonClick}
+                        // 3. Apply the dynamic style and disabled attribute
+                        style={buttonStyle}
+                        disabled={!isUploadAllowed}
+                    >
                         写真をアップロード
                     </button>
                 )}

@@ -212,6 +212,7 @@ export const useGameBoard = () => {
     // このフックが提供する値と関数を返す
     return {
         boardData,
+        directionData,
         imageCache,
         currentMino,
         gameStatus,

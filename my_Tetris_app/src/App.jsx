@@ -8,17 +8,7 @@ import { useGameBoard } from "./hooks/useGameBoard";
 
 function App() {
     // カスタムフックから必要な状態と関数のみを取得
-    const {
-        boardData,
-        imageCache,
-        movable,
-        gameStatus,
-        score, // ◀️ スコアを追加
-        isLoading,
-        fetchGameState,
-        uploadAndProcessImage,
-        spawnTestMino,
-    } = useGameBoard();
+    const { boardData, directionData, imageCache, movable, gameStatus, score, isLoading, fetchGameState, uploadAndProcessImage, spawnTestMino } = useGameBoard();
 
     // アップロードボタンの有効/無効を判定
     const isUploadAllowed = movable.upload || gameStatus === "initial";
@@ -44,7 +34,7 @@ function App() {
             </div>
             {/* ゲーム盤面コンポーネント */}
             <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
-                <GameBoard fieldData={boardData} imageCache={imageCache} />
+                <GameBoard fieldData={boardData} imageCache={imageCache} directionData={directionData} />
             </div>
             {/* 操作ボタンコンポーネント */}
             <ArrowControls
