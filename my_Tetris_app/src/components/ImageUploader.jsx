@@ -16,6 +16,9 @@ const ImageUploader = ({ onUploadRequest, isUploadAllowed }) => {
         if (selectedFile) {
             onUploadRequest(selectedFile); // Run the function from the parent
             setSelectedFile(null); // Reset file selection
+            if (fileInputRef.current) {
+                fileInputRef.current.value = null;
+            }
         }
     };
 
@@ -25,6 +28,9 @@ const ImageUploader = ({ onUploadRequest, isUploadAllowed }) => {
 
     const handleCancel = () => {
         setSelectedFile(null);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = null;
+        }
     };
 
     // 1. Create a style for the disabled state

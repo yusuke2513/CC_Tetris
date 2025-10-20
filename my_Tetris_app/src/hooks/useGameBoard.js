@@ -80,13 +80,11 @@ export const useGameBoard = () => {
                 const frontendMino = swapMinoCoordinates(result.currentMino);
 
                 setBoardData(result.board);
+                setDirectionData(result.direction);
                 setCurrentMino(frontendMino);
                 setMovable(result.canmove);
                 setGameStatus(result.gameStatus);
 
-                if (result.direction) {
-                    setDirectionData(result.direction);
-                }
                 if (result.score !== undefined) {
                     setScore(result.score);
                 }
