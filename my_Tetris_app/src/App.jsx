@@ -5,6 +5,9 @@ import ArrowControls from "./components/ArrowControls";
 import LoadingScreen from "./components/LoadingScreen";
 import styles from "./components/uploaderStyles";
 import { useGameBoard } from "./hooks/useGameBoard";
+import ccdragonLogo from "./assets/ccdragon_logo.png";
+import CCTETRISlogo from "./assets/CCTETRIS_logo.png";
+
 
 function App() {
     // カスタムフックから必要な状態と関数のみを取得
@@ -43,8 +46,13 @@ function App() {
                 </button>
             </div>
             {/* ゲーム盤面コンポーネント */}
-            <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
+            <div style={styles.gameAreaWrapper}>
+                {/* 盤面 */}
                 <GameBoard fieldData={boardData} imageCache={imageCache} />
+
+                {/* ロゴ画像をラッパーの中に移動 */}
+                <img src={ccdragonLogo} alt="CCDRAGON Logo" style={styles.logoImage} />
+                <img src={CCTETRISlogo} alt="CCTETRIS Logo" style={styles.logoImage2} />
             </div>
             {/* 操作ボタンコンポーネント */}
             <ArrowControls onLeft={() => fetchGameState("left")} onRight={() => fetchGameState("right")} onDown={() => fetchGameState("down")} movable={movable} styles={styles} />
