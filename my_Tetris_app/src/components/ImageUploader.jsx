@@ -23,6 +23,10 @@ const ImageUploader = ({ onUploadRequest }) => {
         fileInputRef.current.click();
     };
 
+    const handleCancel = () => {
+        setSelectedFile(null);
+    };
+
     return (
         <div style={styles.container}>
             <FileInput ref={fileInputRef} onFileChange={handleFileChange} />
@@ -32,7 +36,7 @@ const ImageUploader = ({ onUploadRequest }) => {
                         写真をアップロード
                     </button>
                 )}
-                <ImagePreview file={selectedFile} onUpload={handleUploadClick} styles={styles} />
+                <ImagePreview file={selectedFile} onUpload={handleUploadClick} onCancel={handleCancel} styles={styles} />
             </div>
         </div>
     );

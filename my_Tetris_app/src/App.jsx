@@ -47,7 +47,17 @@ function App() {
                 <GameBoard fieldData={boardData} imageCache={imageCache} />
             </div>
             {/* 操作ボタンコンポーネント */}
-            <ArrowControls onLeft={() => fetchGameState("left")} onRight={() => fetchGameState("right")} onDown={() => fetchGameState("down")} movable={movable} styles={styles} />
+            <ArrowControls
+                onLeft={() => fetchGameState("left")}
+                onRight={() => fetchGameState("right")}
+                onDown={() => fetchGameState("down")}
+                // ★ ここからが追加部分
+                onRotateLeft={() => fetchGameState("rotate_left")}
+                onRotateRight={() => fetchGameState("rotate_right")}
+                // ★ ここまで
+                movable={movable}
+                styles={styles}
+            />
         </div>
     );
 }

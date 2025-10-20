@@ -24,7 +24,7 @@ export const useGameBoard = () => {
     const [imageCache, setImageCache] = useState(new Map());
     const [currentMino, setCurrentMino] = useState(null);
     const [gameStatus, setGameStatus] = useState("initial");
-    const [movable, setMovable] = useState({ left: true, right: true, down: true });
+    const [movable, setMovable] = useState({ left: true, right: true, down: true, rotate_right: true, rotate_left: true });
     const [score, setScore] = useState(0);
     const [isLoading, setIsLoading] = useState(false); // ◀️ 1. ローディング用のstateを追加
 
