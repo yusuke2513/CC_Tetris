@@ -10,7 +10,7 @@ import CCTETRISlogo from "./assets/CCTETRIS_logo.png";
 
 function App() {
     // カスタムフックから必要な状態と関数のみを取得
-    const { boardData, directionData, imageCache, movable, gameStatus, score, isLoading, fetchGameState, uploadAndProcessImage, spawnTestMino } = useGameBoard();
+    const { boardData, directionData, imageCache, movable, gameStatus, score, isLoading, fetchGameState, uploadAndProcessImage } = useGameBoard();
 
     // アップロードボタンの有効/無効を判定
     const isUploadAllowed = movable.upload || gameStatus === "initial";
@@ -25,15 +25,10 @@ function App() {
             }}
         >
             {isLoading && <LoadingScreen />} {/* ◀️ 3. isLoadingがtrueの時だけ表示 */}
-            {/* 画像アップロードコンポーネント */}
-            <ImageUploader onUploadRequest={uploadAndProcessImage} isUploadAllowed={isUploadAllowed} />
             {/* --- スコア表示を追加 --- */}
             <div style={{ margin: "20px", textAlign: "center", fontSize: "24px", fontWeight: "bold" }}>SCORE: {score}</div>
-            <div style={{ margin: "10px", textAlign: "center" }}>
-                <button onClick={spawnTestMino} style={{ ...styles.uploadButton, backgroundColor: "#FF9800" }}>
-                    テストミノ出現 (Debug)
-                </button>
-            </div>
+            {/* 画像アップロードコンポーネント */}
+            <ImageUploader onUploadRequest={uploadAndProcessImage} isUploadAllowed={isUploadAllowed} />
             {/* ゲーム盤面コンポーネント */}
             <div style={styles.gameAreaWrapper}>
                 {/* 盤面 */}
