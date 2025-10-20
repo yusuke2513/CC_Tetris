@@ -27,7 +27,7 @@ const GameBoard = ({ fieldData, directionData, imageCache }) => {
         const degrees = (directionValue || 0) * 90;
         return {
             transform: `rotate(${degrees}deg)`,
-            transition: "transform 0.2s ease-in-out", // スムーズな回転アニメーション（任意）
+            // transition: "transform 0.2s ease-in-out", // スムーズな回転アニメーション（任意）
         };
     };
 
